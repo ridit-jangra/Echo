@@ -19,7 +19,8 @@ export async function runLLM({
   mode = 'agent',
   onToolCall,
   onToolResult,
-  abortSignal
+  abortSignal,
+  context
 }: LLMOptions): Promise<{ text: string; session: Session }> {
   const activeSession = session ?? createSession()
   loadMemoryIntoSession(activeSession)
@@ -56,6 +57,7 @@ export async function runLLM({
     stopWhen: stepCountIs(stepLimits[mode] ?? 100),
     tools,
     abortSignal,
+    experimental_context: context,
     experimental_repairToolCall: async ({ toolCall }) => {
       const repaired = repairJSON(toolCall.input as string)
       if (repaired === null) return null
@@ -99,7 +101,8 @@ export async function streamLLM({
   onToolCall,
   onToolResult,
   onChunk,
-  abortSignal
+  abortSignal,
+  context
 }: LLMOptions & {
   onChunk: (delta: string) => void
 }): Promise<{ text: string; session: Session }> {
@@ -138,6 +141,7 @@ export async function streamLLM({
     stopWhen: stepCountIs(stepLimits[mode] ?? 100),
     tools,
     abortSignal,
+    experimental_context: context,
     experimental_repairToolCall: async ({ toolCall }) => {
       const repaired = repairJSON(toolCall.input as string)
       if (repaired === null) return null

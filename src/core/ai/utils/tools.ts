@@ -10,6 +10,7 @@ import { PlanTool } from '../tools/PlanTool/tool'
 import { ScreenshotTool } from '../tools/ScreenshotTool/tool'
 import { ScreenLogTool } from '../tools/ScreenLogTool/tool'
 import { InspectFrameTool } from '../tools/InspectFrameTool/tool'
+import { AppScreenshotTool } from '../tools/AppScreenshotTool/tool'
 
 export const agentTools = {
   MemoryReadTool,
@@ -23,7 +24,8 @@ export const agentTools = {
   PlanTool,
   ScreenshotTool,
   ScreenLogTool,
-  InspectFrameTool
+  InspectFrameTool,
+  AppScreenshotTool
 }
 
 export const chatTools = {
@@ -31,5 +33,6 @@ export const chatTools = {
   HumanEditTool,
   ScreenshotTool,
   ScreenLogTool,
-  InspectFrameTool
+  InspectFrameTool,
+  AppScreenshotTool
 }

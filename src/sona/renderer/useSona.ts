@@ -34,6 +34,7 @@ const BARGE_MIN_VOL = 14
 const BARGE_MARGIN = 10
 const BARGE_SUSTAIN_MS = 350
 const BARGE_ARM_MS = 600
+const BARGE_CHECK_MS = 500
 const BARGE_DEBUG = true
 
 const REPLY_WINDOW_MS = 8_000
@@ -113,6 +114,7 @@ export function useSona(): Sona {
   const bargeCtx = useRef<AudioContext | null>(null)
   const bargeRaf = useRef(0)
   const bargeWanted = useRef(false)
+  const bargeChecking = useRef(false)
 
   const genRef = useRef(0)
 
@@ -217,6 +219,49 @@ export function useSona(): Sona {
     setSpokenText('')
   }, [stopBargeMonitor])
 
+  const confirmBargeSpeech = useCallback(
+    async (stream: MediaStream): Promise<void> => {
+      if (bargeChecking.current) return
+      bargeChecking.current = true
+
+      try {
+        const chunks: BlobPart[] = []
+        const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' })
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) chunks.push(e.data)
+        }
+        const stopped = new Promise<void>((resolve) => {
+          recorder.onstop = () => resolve()
+        })
+        recorder.start()
+        await new Promise((resolve) => setTimeout(resolve, BARGE_CHECK_MS))
+        if (recorder.state === 'recording') recorder.stop()
+        await stopped
+
+        if (!bargeWanted.current || !bargeCtx.current) return
+
+        const blob = new Blob(chunks, { type: 'audio/webm' })
+        const arrayBuffer = await blob.arrayBuffer()
+        const result = await window.server.transcribe(arrayBuffer)
+        const text = result.success ? (result.text?.trim() ?? '') : ''
+
+        if (BARGE_DEBUG) console.log(`[barge] check text=${JSON.stringify(text)}`)
+
+        if (!bargeWanted.current || !bargeCtx.current) return
+
+        if (text && !isGarbage(text)) {
+          stopSpeaking()
+          startListeningRef.current?.()
+        }
+      } catch {
+        /* treat a failed check as noise — keep speaking */
+      } finally {
+        bargeChecking.current = false
+      }
+    },
+    [stopSpeaking]
+  )
+
   const startBargeMonitor = useCallback(async (): Promise<void> => {
     if (bargeCtx.current) return
 
@@ -266,10 +311,9 @@ export function useSona(): Sona {
 
       if (Date.now() >= armAt && volume > threshold) {
         if (!voiceStart) voiceStart = Date.now()
-        else if (Date.now() - voiceStart > BARGE_SUSTAIN_MS) {
-          stopSpeaking()
-          startListeningRef.current?.()
-          return
+        else if (Date.now() - voiceStart > BARGE_SUSTAIN_MS && !bargeChecking.current) {
+          voiceStart = 0
+          void confirmBargeSpeech(stream)
         }
       } else {
         voiceStart = 0
@@ -278,7 +322,7 @@ export function useSona(): Sona {
       bargeRaf.current = requestAnimationFrame(tick)
     }
     bargeRaf.current = requestAnimationFrame(tick)
-  }, [stopSpeaking])
+  }, [confirmBargeSpeech])
 
   const endOfSpeech = useCallback((): void => {
     isPlaying.current = false

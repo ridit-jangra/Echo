@@ -8,6 +8,7 @@ import { ECHO_BASE_DIR, SCREEN_LOG_DIR } from '../../../utils/env'
 import { buildProvider } from '../../../utils/providers'
 import { getVisionState } from '../argus/agent'
 import { startKwinDetector, type ActiveWindow } from './kwin'
+import { activateWindow, listWindows, type OpenWindow } from './windows'
 
 const SAMPLE_MS = 60_000
 const BUFFER_LIMIT = 60
@@ -155,6 +156,36 @@ async function captureToBuffer(): Promise<Buffer | null> {
   } finally {
     await unlink(outPath).catch(() => {})
   }
+}
+
+async function captureWindowToBuffer(id: string): Promise<Buffer | null> {
+  if (!(await activateWindow(id))) return null
+  await new Promise((r) => setTimeout(r, 250))
+
+  const outPath = join(tmpdir(), `iris-win-${Date.now()}.png`)
+  try {
+    const ok = await tryCapture({ cmd: 'spectacle', args: (o) => ['-b', '-n', '-a', '-o', o] }, outPath)
+    if (!ok) return null
+    return await readFile(outPath)
+  } catch (err) {
+    console.error('[iris] window capture failed:', err)
+    return null
+  } finally {
+    await unlink(outPath).catch(() => {})
+  }
+}
+
+export async function listOpenWindows(): Promise<OpenWindow[]> {
+  return listWindows()
+}
+
+export async function describeWindow(
+  id: string,
+  prompt: string = VISION_PROMPT
+): Promise<string | undefined> {
+  const image = await captureWindowToBuffer(id)
+  if (!image) return undefined
+  return describeImage(image, prompt)
 }
 
 async function describeImage(image: Buffer, prompt: string): Promise<string | undefined> {

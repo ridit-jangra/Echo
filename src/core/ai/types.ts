@@ -77,6 +77,7 @@ export type LLMOptions = {
   onToolCall?: (toolCall: StepToolCall) => void
   onToolResult?: (toolResult: StepToolResult) => void
   abortSignal?: AbortSignal
+  context?: unknown
 }
 
 export type CommandContext = {

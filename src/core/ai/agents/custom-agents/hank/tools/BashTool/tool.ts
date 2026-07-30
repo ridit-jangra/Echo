@@ -15,7 +15,7 @@ export const BashTool = tool({
   description: DESCRIPTION + '\n\n' + PROMPT,
   title: 'Bash',
   inputSchema,
-  execute: async ({ command, timeout }, { abortSignal }) => {
+  execute: async ({ command, timeout }, { abortSignal, experimental_context }) => {
     const decision = await requestPermission('BashTool', { command })
     if (decision === 'deny') return { success: false, output: 'User denied permission' }
 
@@ -25,7 +25,8 @@ export const BashTool = tool({
       )
       if (banned) return { success: false, error: `Command "${banned}" is not allowed` }
 
-      const shell = PersistentShell.getInstance()
+      const shellKey = typeof experimental_context === 'string' ? experimental_context : 'default'
+      const shell = PersistentShell.getInstance(shellKey)
 
       const protectedViolation = scanCommandForProtected(command, shell.pwd())
       if (protectedViolation) return { success: false, error: protectedViolation }

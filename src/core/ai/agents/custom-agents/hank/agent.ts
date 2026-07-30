@@ -2,6 +2,7 @@ import { streamLLM } from '../../../utils/llm'
 import { createSession, Session } from '../../../utils/session'
 import { getHankSystemPrompt } from '../../../utils/systemPrompt'
 import { agentTools } from '../../../utils/tools'
+import { PersistentShell } from '../../../utils/PersistentShell'
 import { NotifyTool } from '../../../tools/NotifyTool/tool'
 import { AskEchoTool } from '../../../tools/AskEchoTool/tool'
 import { FileWriteTool } from './tools/FileWriteTool/tool'
@@ -19,30 +20,35 @@ export async function chatStream(
   abortSignal?: AbortSignal
 ): Promise<{ text: string; session: Session }> {
   const session = createSession()
-  return await streamLLM({
-    prompt,
-    abortSignal,
-    system: await getHankSystemPrompt(),
-    tools: {
-      ...agentTools,
-      NotifyTool,
-      AskEchoTool,
-      FileWriteTool,
-      FileEditTool,
-      ListDirTool,
-      GrepTool,
-      MemoryWriteTool,
-      MemoryReadTool,
-      MemoryEditTool,
-      BashTool
-    },
-    session,
-    onChunk,
-    onToolCall: (e) => {
-      console.log(`Hank: [Tool Call]: ${e.toolName}: ${JSON.stringify(e.input)}`)
-    },
-    onToolResult: (e) => {
-      console.log(`Hank: [Tool Result]: ${e.toolName}: ${JSON.stringify(e.output)}`)
-    }
-  })
+  try {
+    return await streamLLM({
+      prompt,
+      abortSignal,
+      context: session.id,
+      system: await getHankSystemPrompt(),
+      tools: {
+        ...agentTools,
+        NotifyTool,
+        AskEchoTool,
+        FileWriteTool,
+        FileEditTool,
+        ListDirTool,
+        GrepTool,
+        MemoryWriteTool,
+        MemoryReadTool,
+        MemoryEditTool,
+        BashTool
+      },
+      session,
+      onChunk,
+      onToolCall: (e) => {
+        console.log(`Hank: [Tool Call]: ${e.toolName}: ${JSON.stringify(e.input)}`)
+      },
+      onToolResult: (e) => {
+        console.log(`Hank: [Tool Result]: ${e.toolName}: ${JSON.stringify(e.output)}`)
+      }
+    })
+  } finally {
+    PersistentShell.restart(session.id)
+  }
 }

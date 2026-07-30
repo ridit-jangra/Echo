@@ -1,6 +1,7 @@
 import { streamLLM } from '../../../utils/llm'
 import { createSession, Session } from '../../../utils/session'
 import { getOttoSystemPrompt } from '../../../utils/systemPrompt'
+import { PersistentShell } from '../../../utils/PersistentShell'
 import { MusicTool } from '../../../tools/MusicTool/tool'
 import { NotifyTool } from '../../../tools/NotifyTool/tool'
 import { AskEchoTool } from '../../../tools/AskEchoTool/tool'
@@ -17,29 +18,34 @@ export async function chatStream(
   abortSignal?: AbortSignal
 ): Promise<{ text: string; session: Session }> {
   const session = createSession()
-  return await streamLLM({
-    prompt,
-    abortSignal,
-    system: await getOttoSystemPrompt(),
-    tools: {
-      MusicTool,
-      SystemTool,
-      ShortcutTool,
-      BashTool,
-      NotifyTool,
-      AskEchoTool,
-      MemoryWriteTool,
-      MemoryReadTool,
-      MemoryEditTool
-    },
-    session,
-    mode: 'subagent',
-    onChunk,
-    onToolCall: (e) => {
-      console.log(`Otto: [Tool Call]: ${e.toolName}: ${JSON.stringify(e.input)}`)
-    },
-    onToolResult: (e) => {
-      console.log(`Otto: [Tool Result]: ${e.toolName}: ${JSON.stringify(e.output)}`)
-    }
-  })
+  try {
+    return await streamLLM({
+      prompt,
+      abortSignal,
+      context: session.id,
+      system: await getOttoSystemPrompt(),
+      tools: {
+        MusicTool,
+        SystemTool,
+        ShortcutTool,
+        BashTool,
+        NotifyTool,
+        AskEchoTool,
+        MemoryWriteTool,
+        MemoryReadTool,
+        MemoryEditTool
+      },
+      session,
+      mode: 'subagent',
+      onChunk,
+      onToolCall: (e) => {
+        console.log(`Otto: [Tool Call]: ${e.toolName}: ${JSON.stringify(e.input)}`)
+      },
+      onToolResult: (e) => {
+        console.log(`Otto: [Tool Result]: ${e.toolName}: ${JSON.stringify(e.output)}`)
+      }
+    })
+  } finally {
+    PersistentShell.restart(session.id)
+  }
 }

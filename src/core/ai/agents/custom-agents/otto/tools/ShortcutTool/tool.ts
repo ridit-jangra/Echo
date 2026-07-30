@@ -45,7 +45,7 @@ export const ShortcutTool = tool({
   title: 'Shortcut',
   description: DESCRIPTION + '\n\n' + PROMPT,
   inputSchema,
-  execute: async ({ action, name, steps }) => {
+  execute: async ({ action, name, steps }, { experimental_context }) => {
     const store = loadStore()
     const key = name?.trim().toLowerCase()
 
@@ -80,7 +80,8 @@ export const ShortcutTool = tool({
         if (!shortcut) {
           return { success: false, error: `No shortcut named "${key}". Define it first.`, known: Object.keys(store) }
         }
-        const shell = PersistentShell.getInstance()
+        const shellKey = typeof experimental_context === 'string' ? experimental_context : 'default'
+        const shell = PersistentShell.getInstance(shellKey)
         const launched: string[] = []
         const failed: { step: string; error: string }[] = []
         for (const step of shortcut.steps) {

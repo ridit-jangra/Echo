@@ -102,19 +102,21 @@ export class PersistentShell {
     }
   }
 
-  private static instance: PersistentShell | null = null
+  private static instances = new Map<string, PersistentShell>()
 
-  static getInstance(): PersistentShell {
-    if (!PersistentShell.instance || !PersistentShell.instance.isAlive) {
-      PersistentShell.instance = new PersistentShell(process.cwd())
-    }
-    return PersistentShell.instance
+  static getInstance(key: string): PersistentShell {
+    const existing = PersistentShell.instances.get(key)
+    if (existing && existing.isAlive) return existing
+    const shell = new PersistentShell(process.cwd())
+    PersistentShell.instances.set(key, shell)
+    return shell
   }
 
-  static restart() {
-    if (PersistentShell.instance) {
-      PersistentShell.instance.close()
-      PersistentShell.instance = null
+  static restart(key: string) {
+    const existing = PersistentShell.instances.get(key)
+    if (existing) {
+      existing.close()
+      PersistentShell.instances.delete(key)
     }
   }
 
