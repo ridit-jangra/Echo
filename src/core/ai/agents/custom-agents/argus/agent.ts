@@ -1,3 +1,4 @@
+import WebSocket from 'ws'
 import { SERVER_PORT } from '../../../../../shared/constants'
 import { setPresent } from '../../../../events/announcements'
 import { say } from '../../../../events/speech'

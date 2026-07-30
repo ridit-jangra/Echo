@@ -1,3 +1,4 @@
+import WebSocket from 'ws'
 import { SERVER_PORT } from '../../shared/constants'
 
 const WAKE_URL = `ws://127.0.0.1:${SERVER_PORT}/wake`

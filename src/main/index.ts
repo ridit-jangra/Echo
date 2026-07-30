@@ -14,6 +14,8 @@ import './ipc/briefing'
 import { mcpManager } from '../core/mcp/manager'
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
+
+app.commandLine.appendSwitch('disable-v8-sandbox')
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import {
@@ -55,6 +57,7 @@ let stopScheduler: (() => void) | null = null
 let stopAnnouncements: (() => void) | null = null
 
 function createWindow(): void {
+  console.log('[debug] createWindow called, is.dev=', is.dev, 'ELECTRON_RENDERER_URL=', process.env['ELECTRON_RENDERER_URL'])
   const mainWindow = new BrowserWindow({
     width: 1100,
     height: 900,
@@ -66,6 +69,16 @@ function createWindow(): void {
       sandbox: false,
       autoplayPolicy: 'no-user-gesture-required'
     }
+  })
+
+  mainWindow.webContents.on('did-fail-load', (_, code, desc) => {
+    console.error('[debug] renderer failed to load:', code, desc)
+  })
+  mainWindow.webContents.on('render-process-gone', (_, details) => {
+    console.error('[debug] renderer process gone:', details.reason, details.exitCode)
+  })
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('[debug] renderer finished loading')
   })
 
   function focusMainWindow(): void {
@@ -99,6 +112,7 @@ function createWindow(): void {
   })
 
   mainWindow.on('ready-to-show', () => {
+    console.log('[debug] ready-to-show firing, showing window')
     mainWindow.show()
   })
 
@@ -108,9 +122,12 @@ function createWindow(): void {
   })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    console.log('[debug] loading dev URL:', process.env['ELECTRON_RENDERER_URL'])
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    const filePath = join(__dirname, '../renderer/index.html')
+    console.log('[debug] loading file:', filePath)
+    mainWindow.loadFile(filePath)
   }
 
   setSpeechEmitter((text, listen) => {
