@@ -159,7 +159,7 @@ async function summarizeSession(session: Session, model: LanguageModel): Promise
   const { text } = await generateText({
     model,
     system:
-      'Summarize this voice conversation between Echo (the assistant) and sir in 2-3 short plain sentences: what they talked about or did, any decisions made, and anything left open or unfinished. No lists, no markdown.',
+      "Write a thorough recap of this voice conversation between Echo (the assistant) and sir, as if briefing yourself before picking it back up. Capture everything worth remembering: every topic discussed, specific facts, names, numbers, files, and decisions mentioned, what was done or built, sir's stated preferences or corrections, and anything left open or unfinished. Be comprehensive and specific rather than vague — use as many sentences as it takes to actually cover what happened; do not compress this down to a couple of lines. Plain prose, no markdown, no headers.",
     prompt: JSON.stringify(convo)
   })
   return text.trim()

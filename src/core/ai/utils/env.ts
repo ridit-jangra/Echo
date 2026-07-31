@@ -12,8 +12,7 @@ export function storeHasContent(dir: string): boolean {
     if (!existsSync(dir)) return false
     const mem = join(dir, 'memory')
     const hasMemory =
-      existsSync(mem) &&
-      readdirSync(mem).some((f) => f.endsWith('.md') || f.endsWith('.mdc'))
+      existsSync(mem) && readdirSync(mem).some((f) => f.endsWith('.md') || f.endsWith('.mdc'))
     const dexterMem = join(dir, 'dexter-memory')
     const hasDexterMemory =
       existsSync(dexterMem) && readdirSync(dexterMem).some((f) => f.endsWith('.md'))
@@ -85,4 +84,5 @@ export const BRIEFING_STATE_FILE = join(ECHO_BASE_DIR, 'briefing-state.json')
 export const SUBSCRIPTIONS_FILE = join(ECHO_BASE_DIR, 'subscriptions.json')
 export const BOOTSTRAP_FILE = join(ECHO_BASE_DIR, 'bootstrap.txt')
 export const SCREEN_LOG_DIR = join(ECHO_BASE_DIR, 'screen-log')
+export const SCREENSHOTS_DIR = join(ECHO_BASE_DIR, 'screenshots')
 export const HUMAN_MEMORY_FILE = join(MEMORY_DIR, 'human-memory.md')

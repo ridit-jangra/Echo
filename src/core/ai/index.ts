@@ -8,9 +8,11 @@ import { ScheduleTool } from './tools/ScheduleTool/tool'
 import { MusicTool } from './tools/MusicTool/tool'
 import { RecallTool } from './tools/RecallTool/tool'
 import { DndTool } from './tools/DndTool/tool'
+import { CheckSubagentMemoryTool } from './tools/CheckSubagentMemoryTool/tool'
 import { drainSubagentResults } from '../events/subagents'
 import { markConversationStart, markConversationEnd } from '../events/announcements'
 import { hasPendingQuestion, answerPendingQuestion } from '../events/pending-question'
+import { setProactiveNoteHandler } from '../events/proactive-log'
 
 const session = createSession(undefined, 'echo')
 
@@ -21,7 +23,8 @@ const echoTools = {
   ScheduleTool,
   MusicTool,
   RecallTool,
-  DndTool
+  DndTool,
+  CheckSubagentMemoryTool
 }
 
 export const WAKE_SENTINEL = '<<wake>>'
@@ -38,6 +41,8 @@ export function noteProactiveLine(line: string): void {
     content: "Noted — if sir responds now, I'll treat it as a reply to what I just said."
   })
 }
+
+setProactiveNoteHandler(noteProactiveLine)
 
 function flushSubagentResults(): void {
   for (const r of drainSubagentResults()) {

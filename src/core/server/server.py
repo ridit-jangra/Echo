@@ -17,6 +17,7 @@ from faster_whisper.audio import decode_audio
 from piper.voice import PiperVoice
 from openwakeword.model import Model
 from sanitize import sanitize_for_tts
+import screencast
 
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
 os.environ["HF_DATASETS_OFFLINE"] = "1"
@@ -332,6 +333,25 @@ async def speak(body: dict):
 
     buf.seek(0)
     return StreamingResponse(buf, media_type="audio/wav")
+
+
+@app.post("/screencast/start")
+async def screencast_start(body: dict):
+    target = body.get("target", "screen")
+    try:
+        result = await asyncio.to_thread(screencast.start_recording, target)
+        return {"success": True, **result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/screencast/stop")
+async def screencast_stop():
+    try:
+        result = await asyncio.to_thread(screencast.stop_recording)
+        return {"success": True, **result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 @app.get("/voices")

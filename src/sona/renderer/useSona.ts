@@ -40,11 +40,12 @@ const BARGE_DEBUG = true
 const REPLY_WINDOW_MS = 8_000
 
 const SILENCE_THRESHOLD_MS = 650
+const MAX_RECORDING_MS = 25_000
 const LISTEN_TICK_MS = 50
 const SPEECH_MIN_VOL = 12
 const SPEECH_MARGIN = 8
 const NOISE_ADAPT = 0.05
-const SPEECH_SUSTAIN_TICKS = 2
+const SPEECH_SUSTAIN_TICKS = 3
 
 const HALLUCINATION_PATTERNS = [
   /^(uh+|um+|hm+|hmm+|ah+|eh+)\.?$/i,
@@ -532,8 +533,16 @@ export function useSona(): Sona {
       })
       chunks.current = []
 
+      let awaitingSpecFlush = false
+      let specTranscribe: ReturnType<typeof window.server.transcribe> | null = null
+
       mediaRecorder.current.ondataavailable = (e) => {
         if (e.data.size > 0) chunks.current.push(e.data)
+        if (awaitingSpecFlush) {
+          awaitingSpecFlush = false
+          const blob = new Blob(chunks.current, { type: 'audio/webm' })
+          specTranscribe = blob.arrayBuffer().then((buf) => window.server.transcribe(buf))
+        }
       }
 
       const audioCtx = new AudioContext()
@@ -571,6 +580,15 @@ export function useSona(): Sona {
           return
         }
 
+        // Failsafe: intermittent background noise (fans, clicks, chatter) can keep
+        // re-triggering the "loud" branch below and endlessly reset the silence
+        // timer, so recording never naturally stops. This guarantees it always does.
+        if (Date.now() - openedAt > MAX_RECORDING_MS) {
+          cleanup()
+          recorder.stop()
+          return
+        }
+
         analyser.getByteFrequencyData(data)
         const volume = data.reduce((a, b) => a + b, 0) / data.length
 
@@ -584,13 +602,22 @@ export function useSona(): Sona {
             spokenOnce = true
             lastSoundAt = Date.now()
             silenceStart = Date.now()
+            awaitingSpecFlush = false
+            specTranscribe = null
           }
         } else {
           loudTicks = 0
           noiseFloor += NOISE_ADAPT * (volume - noiseFloor)
-          if (spokenOnce && Date.now() - silenceStart > SILENCE_THRESHOLD_MS) {
-            cleanup()
-            recorder.stop()
+          if (spokenOnce) {
+            const silenceMs = Date.now() - silenceStart
+            if (!awaitingSpecFlush && !specTranscribe && silenceMs > SILENCE_THRESHOLD_MS / 2) {
+              awaitingSpecFlush = true
+              recorder.requestData()
+            }
+            if (silenceMs > SILENCE_THRESHOLD_MS) {
+              cleanup()
+              recorder.stop()
+            }
           }
         }
       }, LISTEN_TICK_MS)
@@ -600,9 +627,13 @@ export function useSona(): Sona {
 
         const speechMs = spokenOnce ? lastSoundAt - firstSoundAt : 0
         try {
-          const blob = new Blob(chunks.current, { type: 'audio/webm' })
-          const arrayBuffer = await blob.arrayBuffer()
-          const result = await window.server.transcribe(arrayBuffer)
+          const result = specTranscribe
+            ? await specTranscribe
+            : await (async () => {
+                const blob = new Blob(chunks.current, { type: 'audio/webm' })
+                const arrayBuffer = await blob.arrayBuffer()
+                return window.server.transcribe(arrayBuffer)
+              })()
           const text = result.success ? (result.text?.trim() ?? '') : ''
           const tone = result.tone
           console.log(`[Miles] tone: ${tone ?? 'none'} — ${JSON.stringify(text)}`)

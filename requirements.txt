@@ -14,3 +14,5 @@ nvidia-cudnn-cu12>=9,<10; sys_platform != "darwin"
 clap-detector
 mediapipe
 evdev; sys_platform == "linux"
+dbus-python; sys_platform == "linux"
+PyGObject; sys_platform == "linux"

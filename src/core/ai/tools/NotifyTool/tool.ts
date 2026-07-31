@@ -1,6 +1,7 @@
 import { tool } from 'ai'
 import { z } from 'zod'
 import { say } from '../../../events/speech'
+import { noteProactiveSpoken } from '../../../events/proactive-log'
 import { DESCRIPTION, PROMPT } from './prompt'
 
 export const NotifyTool = tool({
@@ -13,6 +14,7 @@ export const NotifyTool = tool({
   }),
   execute: async ({ message }) => {
     say(message)
+    noteProactiveSpoken(message)
     return { success: true, notified: message }
   }
 })

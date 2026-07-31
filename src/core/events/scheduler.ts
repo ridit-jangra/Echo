@@ -2,7 +2,8 @@ import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import { ECHO_BASE_DIR } from '../ai/utils/env'
 import { announce } from './announcements'
-import { narrateSubagentResult } from './narrate'
+import { narrateSubagentResult, narrateStaleReminder } from './narrate'
+import { noteProactiveSpoken } from './proactive-log'
 import {
   startSubagentRun,
   appendSubagentActivity,
@@ -19,6 +20,16 @@ import { chatStream as otto } from '../ai/agents/custom-agents/otto/agent'
 
 const SCHEDULES_FILE = join(ECHO_BASE_DIR, 'schedules.json')
 const TICK_MS = 20_000
+const STALE_THRESHOLD_MS = 3 * 60_000
+
+function stalePhrase(ms: number): string {
+  const min = Math.round(ms / 60_000)
+  if (min < 60) return `${min} minute${min === 1 ? '' : 's'}`
+  const hr = Math.round(min / 60)
+  if (hr < 24) return `${hr} hour${hr === 1 ? '' : 's'}`
+  const d = Math.round(hr / 24)
+  return `${d} day${d === 1 ? '' : 's'}`
+}
 
 const AGENTS = { dexter, hank, merlin, scout, otto } as const
 
@@ -63,9 +74,7 @@ export function nextDailyAt(time: string, after: number): number {
   return d.getTime()
 }
 
-export function createSchedule(
-  entry: Omit<ScheduleEntry, 'id' | 'createdAt'>
-): ScheduleEntry {
+export function createSchedule(entry: Omit<ScheduleEntry, 'id' | 'createdAt'>): ScheduleEntry {
   const full: ScheduleEntry = {
     ...entry,
     id: crypto.randomUUID().slice(0, 8),
@@ -93,7 +102,11 @@ export function cancelSchedule(id: string): ScheduleEntry | undefined {
 function runTask(entry: ScheduleEntry): void {
   const { agent, instruction } = entry.task!
   const runId = startSubagentRun(agent, instruction)
-  void AGENTS[agent](instruction, (delta) => appendSubagentActivity(runId, delta), getSubagentSignal(runId))
+  void AGENTS[agent](
+    instruction,
+    (delta) => appendSubagentActivity(runId, delta),
+    getSubagentSignal(runId)
+  )
     .then(async ({ text }) => {
       if (getSubagentRun(runId)?.status === 'killed') return
       completeSubagentRun(runId, true)
@@ -120,15 +133,20 @@ function runTask(entry: ScheduleEntry): void {
     })
 }
 
+function speakReminder(text: string): void {
+  announce(text)
+  noteProactiveSpoken(text)
+}
+
 function fire(entry: ScheduleEntry): void {
   if (entry.speak) {
-    announce(entry.speak)
-    recordSubagentResult({
-      agent: 'scheduler',
-      task: `[scheduled: ${entry.label}]`,
-      result: `Fired and spoke aloud: "${entry.speak}"`,
-      ok: true
-    })
+    const staleMs = Date.now() - entry.nextAt
+    if (staleMs > STALE_THRESHOLD_MS) {
+      const original = entry.speak
+      void narrateStaleReminder(original, stalePhrase(staleMs)).then(speakReminder)
+    } else {
+      speakReminder(entry.speak)
+    }
   }
   if (entry.task) runTask(entry)
 }

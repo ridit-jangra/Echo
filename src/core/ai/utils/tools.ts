@@ -11,6 +11,7 @@ import { ScreenshotTool } from '../tools/ScreenshotTool/tool'
 import { ScreenLogTool } from '../tools/ScreenLogTool/tool'
 import { InspectFrameTool } from '../tools/InspectFrameTool/tool'
 import { AppScreenshotTool } from '../tools/AppScreenshotTool/tool'
+import { ScreenRecordTool } from '../tools/ScreenRecordTool/tool'
 
 export const agentTools = {
   MemoryReadTool,
@@ -25,7 +26,8 @@ export const agentTools = {
   ScreenshotTool,
   ScreenLogTool,
   InspectFrameTool,
-  AppScreenshotTool
+  AppScreenshotTool,
+  ScreenRecordTool
 }
 
 export const chatTools = {
@@ -34,5 +36,6 @@ export const chatTools = {
   ScreenshotTool,
   ScreenLogTool,
   InspectFrameTool,
-  AppScreenshotTool
+  AppScreenshotTool,
+  ScreenRecordTool
 }

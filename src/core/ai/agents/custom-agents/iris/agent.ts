@@ -1,10 +1,9 @@
 import { execFile } from 'child_process'
 import { appendFileSync, statSync } from 'fs'
-import { mkdir, readFile, unlink, writeFile } from 'fs/promises'
-import { tmpdir } from 'os'
+import { mkdir, readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { generateText, type LanguageModel } from 'ai'
-import { ECHO_BASE_DIR, SCREEN_LOG_DIR } from '../../../utils/env'
+import { ECHO_BASE_DIR, SCREEN_LOG_DIR, SCREENSHOTS_DIR } from '../../../utils/env'
 import { buildProvider } from '../../../utils/providers'
 import { getVisionState } from '../argus/agent'
 import { startKwinDetector, type ActiveWindow } from './kwin'
@@ -145,16 +144,19 @@ async function captureScreen(outPath: string): Promise<void> {
   throw new Error(`no screenshot tool available (tried ${CAPTURERS.map((c) => c.cmd).join(', ')})`)
 }
 
+function screenshotStamp(): string {
+  return new Date().toISOString().replace(/[:.]/g, '-')
+}
+
 async function captureToBuffer(): Promise<Buffer | null> {
-  const outPath = join(tmpdir(), `iris-${Date.now()}.png`)
+  await mkdir(SCREENSHOTS_DIR, { recursive: true }).catch(() => {})
+  const outPath = join(SCREENSHOTS_DIR, `screen-${screenshotStamp()}.png`)
   try {
     await captureScreen(outPath)
     return await readFile(outPath)
   } catch (err) {
     console.error('[iris] capture failed:', err)
     return null
-  } finally {
-    await unlink(outPath).catch(() => {})
   }
 }
 
@@ -162,16 +164,18 @@ async function captureWindowToBuffer(id: string): Promise<Buffer | null> {
   if (!(await activateWindow(id))) return null
   await new Promise((r) => setTimeout(r, 250))
 
-  const outPath = join(tmpdir(), `iris-win-${Date.now()}.png`)
+  await mkdir(SCREENSHOTS_DIR, { recursive: true }).catch(() => {})
+  const outPath = join(SCREENSHOTS_DIR, `window-${screenshotStamp()}.png`)
   try {
-    const ok = await tryCapture({ cmd: 'spectacle', args: (o) => ['-b', '-n', '-a', '-o', o] }, outPath)
+    const ok = await tryCapture(
+      { cmd: 'spectacle', args: (o) => ['-b', '-n', '-a', '-o', o] },
+      outPath
+    )
     if (!ok) return null
     return await readFile(outPath)
   } catch (err) {
     console.error('[iris] window capture failed:', err)
     return null
-  } finally {
-    await unlink(outPath).catch(() => {})
   }
 }
 

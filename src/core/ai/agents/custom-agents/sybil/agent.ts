@@ -265,7 +265,9 @@ export function startSybil(): () => void {
         saveState(state)
         try {
           const briefing = await getBriefing()
-          announce(formatBriefing(briefing))
+          const line = formatBriefing(briefing)
+          announce(line)
+          noteProactiveLine(line)
           console.log('[sybil] delivered daily briefing')
         } catch (err) {
           console.error('[sybil] briefing failed:', err)
