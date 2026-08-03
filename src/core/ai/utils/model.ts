@@ -8,8 +8,8 @@ export async function getModel(): Promise<{
   config: ProviderConfig
 }> {
   const config: ProviderConfig = {
-    // model: 'google/gemini-3.1-flash-lite:nitro',
-    model: 'deepseek/deepseek-v4-flash:nitro',
+    model: 'google/gemini-3.1-flash-lite:nitro',
+    // model: 'deepseek/deepseek-v4-flash:nitro',
     name: 'openrouter-ig-idk-idc',
     provider: 'openrouter',
     apiKey: process.env.OPENROUTER_API_KEY
