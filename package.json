@@ -1,6 +1,6 @@
 {
   "name": "miles",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "An Electron application with React and TypeScript",
   "main": "./out/main/index.js",
   "author": "example.com",
@@ -44,7 +44,6 @@
     "dbus-next": "^0.10.2",
     "diff": "^9.0.0",
     "dotenv": "^17.4.2",
-    "electron": "31",
     "electron-updater": "^6.3.9",
     "lucide-react": "^1.17.0",
     "postprocessing": "^6.39.1",
@@ -58,6 +57,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "electron": "31",
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",
     "@electron-toolkit/eslint-config-ts": "^3.1.0",
     "@electron-toolkit/tsconfig": "^2.0.0",
