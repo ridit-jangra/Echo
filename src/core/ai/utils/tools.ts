@@ -7,12 +7,14 @@ import { SubagentTool } from '../tools/SubagentTool/tool'
 import { CheckAgentsTool } from '../tools/CheckAgentsTool/tool'
 import { SubscribeTool } from '../tools/SubscribeTool/tool'
 import { PlanTool } from '../tools/PlanTool/tool'
-import { ScreenshotTool } from '../tools/ScreenshotTool/tool'
 import { ScreenLogTool } from '../tools/ScreenLogTool/tool'
 import { InspectFrameTool } from '../tools/InspectFrameTool/tool'
-import { AppScreenshotTool } from '../tools/AppScreenshotTool/tool'
 import { ScreenRecordTool } from '../tools/ScreenRecordTool/tool'
 
+// ScreenshotTool and AppScreenshotTool are deliberately NOT here — they save
+// into ~/.echo/screenshots, and only Miles' own root chat (index.ts) should
+// be able to write there. Subagents that spread agentTools (merlin, hank)
+// must not get them.
 export const agentTools = {
   MemoryReadTool,
   MemoryWriteTool,
@@ -23,19 +25,15 @@ export const agentTools = {
   CheckAgentsTool,
   SubscribeTool,
   PlanTool,
-  ScreenshotTool,
   ScreenLogTool,
   InspectFrameTool,
-  AppScreenshotTool,
   ScreenRecordTool
 }
 
 export const chatTools = {
   MemoryReadTool,
   HumanEditTool,
-  ScreenshotTool,
   ScreenLogTool,
   InspectFrameTool,
-  AppScreenshotTool,
   ScreenRecordTool
 }

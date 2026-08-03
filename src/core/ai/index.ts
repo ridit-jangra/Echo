@@ -9,6 +9,8 @@ import { MusicTool } from './tools/MusicTool/tool'
 import { RecallTool } from './tools/RecallTool/tool'
 import { DndTool } from './tools/DndTool/tool'
 import { CheckSubagentMemoryTool } from './tools/CheckSubagentMemoryTool/tool'
+import { ScreenshotTool } from './tools/ScreenshotTool/tool'
+import { AppScreenshotTool } from './tools/AppScreenshotTool/tool'
 import { drainSubagentResults } from '../events/subagents'
 import { markConversationStart, markConversationEnd } from '../events/announcements'
 import { hasPendingQuestion, answerPendingQuestion } from '../events/pending-question'
@@ -24,7 +26,9 @@ const echoTools = {
   MusicTool,
   RecallTool,
   DndTool,
-  CheckSubagentMemoryTool
+  CheckSubagentMemoryTool,
+  ScreenshotTool,
+  AppScreenshotTool
 }
 
 export const WAKE_SENTINEL = '<<wake>>'
