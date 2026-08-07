@@ -2,7 +2,8 @@ faster-whisper
 fastapi
 uvicorn[default]
 python-multipart
-piper-tts
+httpx
+python-dotenv
 soundfile
 numpy
 scipy

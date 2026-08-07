@@ -25,6 +25,10 @@ const AGENTS = { dexter, hank, merlin, scout, otto } as const
 // reads as talking over itself — so only speak ours when the air's actually silent.
 const RECENT_SPEECH_SKIP_MS = 10_000
 
+// Fast subagent runs shouldn't get a filler at all — it'd fire and then immediately
+// get followed by the real result, reading as noise instead of covering dead air.
+const FILLER_DELAY_MS = 2_500
+
 export const SubagentTool = tool({
   title: 'Subagent',
   description: DESCRIPTION + '\n\n' + PROMPT,
@@ -36,13 +40,23 @@ export const SubagentTool = tool({
   }),
   execute: async ({ agent, task }) => {
     const runId = startSubagentRun(agent, task)
-    if (msSinceLastSpoken() > RECENT_SPEECH_SKIP_MS) say(getFiller(agent), false)
+
+    let fillerTimer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+      fillerTimer = null
+      if (msSinceLastSpoken() > RECENT_SPEECH_SKIP_MS) say(getFiller(agent), false)
+    }, FILLER_DELAY_MS)
+    const cancelFiller = (): void => {
+      if (fillerTimer) clearTimeout(fillerTimer)
+      fillerTimer = null
+    }
+
     void AGENTS[agent](
       task,
       (delta) => appendSubagentActivity(runId, delta),
       getSubagentSignal(runId)
     )
       .then(async ({ text }) => {
+        cancelFiller()
         refreshFillerPool(agent, `Just finished: ${task}`)
         if (getSubagentRun(runId)?.status === 'killed') return
         completeSubagentRun(runId, true)
@@ -50,6 +64,7 @@ export const SubagentTool = tool({
         say(await narrateSubagentResult(agent, task, text))
       })
       .catch((err) => {
+        cancelFiller()
         if (getSubagentRun(runId)?.status === 'killed') {
           recordSubagentResult({
             agent,

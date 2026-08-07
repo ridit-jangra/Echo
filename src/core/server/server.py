@@ -9,18 +9,21 @@ import threading
 
 import numpy as np
 import pyaudio
+import httpx
+from dotenv import load_dotenv
 from scipy.signal import resample_poly
 from fastapi import FastAPI, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 from faster_whisper import WhisperModel
 from faster_whisper.audio import decode_audio
-from piper.voice import PiperVoice
 from openwakeword.model import Model
 from sanitize import sanitize_for_tts
 import screencast
 
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
 os.environ["HF_DATASETS_OFFLINE"] = "1"
+
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../.env"))
 
 app = FastAPI()
 
@@ -61,12 +64,11 @@ def load_stt() -> WhisperModel:
 
 stt_model = load_stt()
 
-DANNY_MODEL = os.path.join(MODELS_DIR, "en_US-danny-low.onnx")
-
-DEFAULT_VOICE = "en_US-danny-low"
-VOICES = {DEFAULT_VOICE: PiperVoice.load(DANNY_MODEL)}
-tts = VOICES[DEFAULT_VOICE]
-print("TTS: Piper danny loaded")
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+TTS_MODEL = "google/gemini-3.1-flash-tts-preview"
+TTS_VOICE = "Schedar"
+TTS_SAMPLE_RATE = 24000
+print(f"TTS: Gemini 3.1 Flash ({TTS_VOICE}) via OpenRouter")
 
 oww_model = Model(
     wakeword_models=[os.path.join(MODELS_DIR, "wakeup.onnx")],
@@ -358,16 +360,29 @@ async def transcribe(file: UploadFile):
 @app.post("/speak")
 async def speak(body: dict):
     text = sanitize_for_tts(body.get("text", ""))
-    voice = VOICES.get(body.get("voice", DEFAULT_VOICE), tts)
+    pcm = b""
+
+    if text:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                "https://openrouter.ai/api/v1/audio/speech",
+                headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
+                json={
+                    "model": TTS_MODEL,
+                    "input": text,
+                    "voice": TTS_VOICE,
+                    "response_format": "pcm",
+                },
+            )
+            resp.raise_for_status()
+            pcm = resp.content
 
     buf = io.BytesIO()
     with wave.open(buf, "wb") as wav_file:
-        if not text:
-            wav_file.setnchannels(1)
-            wav_file.setsampwidth(2)
-            wav_file.setframerate(voice.config.sample_rate)
-        else:
-            voice.synthesize_wav(text, wav_file)
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(TTS_SAMPLE_RATE)
+        wav_file.writeframes(pcm)
 
     buf.seek(0)
     return StreamingResponse(buf, media_type="audio/wav")
@@ -397,8 +412,8 @@ async def voices():
     return {
         "voices": [
             {
-                "id": "en_US-danny-low",
-                "name": "Danny",
+                "id": TTS_VOICE,
+                "name": TTS_VOICE,
                 "language": "en-US",
                 "gender": "male",
             }
