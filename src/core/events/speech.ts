@@ -37,6 +37,11 @@ function tooSimilar(a: string, b: string): boolean {
   return shared / Math.max(ta.size, tb.size) >= 0.6
 }
 
+/** Ms since anything was last spoken through say(), or Infinity if nothing has been yet. */
+export function msSinceLastSpoken(): number {
+  return lastSpokenAt ? Date.now() - lastSpokenAt : Infinity
+}
+
 /** Returns whether the line was actually spoken (false if throttled/deduped). */
 export function say(text: string, listen = false): boolean {
   const trimmed = text?.trim()

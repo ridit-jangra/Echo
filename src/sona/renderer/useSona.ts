@@ -7,6 +7,15 @@ const MIN_SPEECH_MS = 150
 
 const WAKE_SENTINEL = '<<wake>>'
 
+const MILES_FILLER_DEFAULTS = [
+  'let me think',
+  'one sec',
+  "let's see",
+  'give me a moment',
+  'hmm, okay'
+]
+const FILLER_DELAY_MS = 700
+
 const BRIEFED_KEY = 'wake:lastBriefedDate'
 
 function todayKey(): string {
@@ -110,6 +119,8 @@ export function useSona(): Sona {
   const levelRaf = useRef(0)
   const lastCaption = useRef('')
   const pumping = useRef(false)
+
+  const fillerPool = useRef<string[]>(MILES_FILLER_DEFAULTS)
 
   const bargeStream = useRef<MediaStream | null>(null)
   const bargeCtx = useRef<AudioContext | null>(null)
@@ -451,6 +462,18 @@ export function useSona(): Sona {
   }, [speak, openReplyWindow])
 
   useEffect(() => {
+    const off = window.filler?.onUpdate((agent: string, pool: string[]) => {
+      if (agent === 'miles' && pool.length) fillerPool.current = pool
+    })
+    return off
+  }, [])
+
+  const getMilesFiller = useCallback((): string => {
+    const pool = fillerPool.current
+    return pool[Math.floor(Math.random() * pool.length)]
+  }, [])
+
+  useEffect(() => {
     return () => {
       if (transcriptFadeTimer.current) clearTimeout(transcriptFadeTimer.current)
       if (levelRaf.current) cancelAnimationFrame(levelRaf.current)
@@ -483,6 +506,10 @@ export function useSona(): Sona {
       let buffer = ''
       let spokenYet = false
 
+      const fillerTimer = setTimeout(() => {
+        if (genRef.current === myGen && !spokenYet) speak(getMilesFiller())
+      }, FILLER_DELAY_MS)
+
       const removeListener = window.ai.onChunk((delta: string) => {
         if (genRef.current !== myGen) return
         buffer += delta
@@ -490,6 +517,7 @@ export function useSona(): Sona {
           ? extractSpeakable(buffer)
           : extractSpeakable(buffer, 3, 4)
         if (sentences) {
+          clearTimeout(fillerTimer)
           speak(sentences)
           spokenYet = true
         }
@@ -498,16 +526,22 @@ export function useSona(): Sona {
 
       try {
         const fullText: string = await window.ai.chatStream(userText)
+        clearTimeout(fillerTimer)
         removeListener()
         if (genRef.current === myGen) handleStreamComplete(fullText, buffer)
+        window.filler?.requestRefresh(
+          'miles',
+          `Sir said: "${userText}"\nMiles replied: "${fullText.slice(0, 300)}"`
+        )
       } catch (e) {
+        clearTimeout(fillerTimer)
         removeListener()
 
         setThinking(false)
         console.error('[Miles] streaming failed:', e)
       }
     },
-    [speak, handleStreamComplete]
+    [speak, handleStreamComplete, getMilesFiller]
   )
 
   const startListening = useCallback(

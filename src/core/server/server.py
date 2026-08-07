@@ -281,16 +281,54 @@ def analyze_tone(samples: np.ndarray, words: list) -> str:
     slow = 0.0 < rate < 1.8
 
     if loud and fast:
-        return "excited"
-    if loud:
-        return "emphatic"
-    if quiet and slow:
-        return "subdued"
-    if fast:
-        return "rushed"
-    if slow:
-        return "hesitant"
-    return "neutral"
+        bucket = "excited"
+    elif loud:
+        bucket = "emphatic"
+    elif quiet and slow:
+        bucket = "subdued"
+    elif fast:
+        bucket = "rushed"
+    elif slow:
+        bucket = "hesitant"
+    else:
+        bucket = "neutral"
+
+    details = []
+
+    if len(words) >= 2:
+        word_rms = []
+        for w in words:
+            start_i = max(int(w.start * RATE), 0)
+            end_i = min(int(w.end * RATE), samples.size)
+            seg = samples[start_i:end_i] if end_i > start_i else np.array([], dtype=np.float32)
+            word_rms.append(float(np.sqrt(np.mean(seg**2))) if seg.size else 0.0)
+
+        mean_rms = float(np.mean(word_rms)) if word_rms else 0.0
+        if mean_rms > 1e-4:
+            peak_i = int(np.argmax(word_rms))
+            peak_word = words[peak_i].word.strip()
+            if word_rms[peak_i] > mean_rms * 1.6 and len(peak_word) > 1:
+                details.append(f'emphasis on "{peak_word}"')
+
+        gaps = [(words[i + 1].start - words[i].end, i) for i in range(len(words) - 1)]
+        if gaps:
+            gap_len, gap_i = max(gaps, key=lambda g: g[0])
+            if gap_len > 0.5:
+                details.append(f'pause after "{words[gap_i].word.strip()}"')
+
+    if len(words) >= 4:
+        mid = len(words) // 2
+        first, second = words[:mid], words[mid:]
+        f_span = max(first[-1].end - first[0].start, 1e-3)
+        s_span = max(second[-1].end - second[0].start, 1e-3)
+        f_rate = len(first) / f_span
+        s_rate = len(second) / s_span
+        if f_rate > 0 and s_rate / f_rate > 1.35:
+            details.append("sped up toward the end")
+        elif f_rate > 0 and s_rate / f_rate < 0.7:
+            details.append("trailed off, slowed down")
+
+    return f"{bucket}, {', '.join(details)}" if details else bucket
 
 
 @app.post("/transcribe")

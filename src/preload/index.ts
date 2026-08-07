@@ -21,7 +21,9 @@ import {
   TRANSCRIBE,
   EVENT_ALERT,
   WAKE_TRIGGER,
-  DND_ENTERED
+  DND_ENTERED,
+  FILLER_UPDATE,
+  FILLER_REFRESH
 } from '../shared/channels'
 import type { MCPServerInput, MCPServerState, MCPServerUpdate } from '../shared/mcp'
 import type { GithubDeviceStart, SlackOAuthResult } from '../shared/oauth'
@@ -117,6 +119,18 @@ const dnd = {
   }
 }
 
+const filler = {
+  onUpdate: (cb: (agent: string, pool: string[]) => void) => {
+    const handler = (_e: Electron.IpcRendererEvent, agent: string, pool: string[]): void =>
+      cb(agent, pool)
+    ipcRenderer.on(FILLER_UPDATE, handler)
+    return () => ipcRenderer.removeListener(FILLER_UPDATE, handler)
+  },
+  requestRefresh: (agent: string, context: string): void => {
+    ipcRenderer.send(FILLER_REFRESH, agent, context)
+  }
+}
+
 contextBridge.exposeInMainWorld('env', {
   WEATHER_API_KEY: process.env.WEATHER_API_KEY ?? '',
   NEWS_API_KEY: process.env.NEWS_API_KEY ?? ''
@@ -131,6 +145,7 @@ try {
   contextBridge.exposeInMainWorld('briefing', briefing)
   contextBridge.exposeInMainWorld('settings', settings)
   contextBridge.exposeInMainWorld('speak', speak)
+  contextBridge.exposeInMainWorld('filler', filler)
   contextBridge.exposeInMainWorld('wake', wake)
   contextBridge.exposeInMainWorld('dnd', dnd)
   contextBridge.exposeInMainWorld('events', events)

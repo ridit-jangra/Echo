@@ -57,6 +57,10 @@ declare global {
     briefing: briefing_api
     settings: settings_api
     speak: { onSay: (cb: (text: string, listen: boolean) => void) => () => void }
+    filler: {
+      onUpdate: (cb: (agent: string, pool: string[]) => void) => () => void
+      requestRefresh: (agent: string, context: string) => void
+    }
     wake: { onTrigger: (cb: () => void) => () => void }
     dnd: { onEnter: (cb: () => void) => () => void }
     events: { onAlert: (cb: (alert: EventAlert) => void) => () => void }

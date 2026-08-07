@@ -5,7 +5,7 @@ import { chatStream as hank } from '../../agents/custom-agents/hank/agent'
 import { chatStream as merlin } from '../../agents/custom-agents/merlin/agent'
 import { chatStream as scout } from '../../agents/custom-agents/scout/agent'
 import { chatStream as otto } from '../../agents/custom-agents/otto/agent'
-import { say } from '../../../events/speech'
+import { say, msSinceLastSpoken } from '../../../events/speech'
 import {
   recordSubagentResult,
   startSubagentRun,
@@ -15,9 +15,15 @@ import {
   getSubagentSignal
 } from '../../../events/subagents'
 import { narrateSubagentResult } from '../../../events/narrate'
+import { getFiller, refreshFillerPool } from '../../../events/fillers'
 import { DESCRIPTION, PROMPT } from './prompt'
 
 const AGENTS = { dexter, hank, merlin, scout, otto } as const
+
+// If sir just heard something (e.g. the model slipped a SpeakTool heads-up in right
+// before delegating, despite being told not to), a second filler line on top of it
+// reads as talking over itself — so only speak ours when the air's actually silent.
+const RECENT_SPEECH_SKIP_MS = 10_000
 
 export const SubagentTool = tool({
   title: 'Subagent',
@@ -30,8 +36,14 @@ export const SubagentTool = tool({
   }),
   execute: async ({ agent, task }) => {
     const runId = startSubagentRun(agent, task)
-    void AGENTS[agent](task, (delta) => appendSubagentActivity(runId, delta), getSubagentSignal(runId))
+    if (msSinceLastSpoken() > RECENT_SPEECH_SKIP_MS) say(getFiller(agent), false)
+    void AGENTS[agent](
+      task,
+      (delta) => appendSubagentActivity(runId, delta),
+      getSubagentSignal(runId)
+    )
       .then(async ({ text }) => {
+        refreshFillerPool(agent, `Just finished: ${task}`)
         if (getSubagentRun(runId)?.status === 'killed') return
         completeSubagentRun(runId, true)
         recordSubagentResult({ agent, task, result: text, ok: true })

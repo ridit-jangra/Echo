@@ -11,6 +11,7 @@ import './ipc/ai'
 import './ipc/mcp'
 import './ipc/oauth'
 import './ipc/briefing'
+import './ipc/filler'
 import { mcpManager } from '../core/mcp/manager'
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
@@ -23,7 +24,8 @@ import {
   WAKE_TRIGGER,
   DND_ENTERED,
   EVENT_ALERT,
-  SPEAK_SAY
+  SPEAK_SAY,
+  FILLER_UPDATE
 } from '../shared/channels'
 import { startWakeListener } from './ipc/wake'
 import { isDnd, setDndEnterNotifier } from '../core/events/dnd'
@@ -43,6 +45,7 @@ import { startJanus } from '../core/ai/agents/custom-agents/janus/agent'
 import { startScheduler } from '../core/events/scheduler'
 import { narrateAlert } from '../core/events/narrate'
 import { setSpeechEmitter } from '../core/events/speech'
+import { setFillerEmitter, refreshFillerPool } from '../core/events/fillers'
 import { announce, markActivity, startAnnouncementFlusher } from '../core/events/announcements'
 import { startBackupTimer, backupEchoStore } from '../core/ai/utils/backup'
 
@@ -132,6 +135,14 @@ function createWindow(): void {
 
   setSpeechEmitter((text, listen) => {
     if (!mainWindow.isDestroyed()) mainWindow.webContents.send(SPEAK_SAY, text, listen)
+  })
+
+  setFillerEmitter((agent, pool) => {
+    if (!mainWindow.isDestroyed()) mainWindow.webContents.send(FILLER_UPDATE, agent, pool)
+  })
+
+  mainWindow.webContents.once('did-finish-load', () => {
+    refreshFillerPool('miles', '')
   })
 
   const stopPoller = startSlackPoller(async (alert, subs) => {

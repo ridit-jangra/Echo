@@ -26,3 +26,6 @@ export const DND_ENTERED = 'dnd:entered'
 
 export const SPEAK_SAY = 'speak:say'
 export const EVENT_ALERT = 'events:alert'
+
+export const FILLER_UPDATE = 'filler:update'
+export const FILLER_REFRESH = 'filler:refresh'
